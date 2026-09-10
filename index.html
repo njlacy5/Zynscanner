@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f3eb"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>Quick Scan</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{--paper:#f6f3eb;--ink:#24342c;--muted:#678b93;--gold:#c58b2c;--line:#d9d1c1;--card:#fbfaf6}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Georgia,"Times New Roman",serif}
+.app{max-width:760px;margin:auto;padding:28px 18px 48px}.top{display:flex;align-items:flex-end;justify-content:space-between;padding:8px 8px 22px;border-bottom:4px solid var(--gold)}
+.brand{font-size:30px;font-weight:700}.brand span{color:var(--gold)}.kicker{font:600 11px/1.2 ui-monospace,monospace;letter-spacing:2px;color:#8eb2b4}
+.card{margin-top:30px;background:var(--card);border:1px solid var(--line);box-shadow:3px 4px 0 #d8d1c2;padding:20px}
+.title{font-size:20px;font-weight:700;padding-bottom:12px;border-bottom:3px solid #e5dfd2}.label{font:700 11px ui-monospace,monospace;letter-spacing:1.6px;color:var(--muted)}
+#reader{margin-top:16px;min-height:330px;background:#151817;border:1px solid #bbb2a2;overflow:hidden}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:15px 0}.stat{border:1px solid var(--line);padding:12px;text-align:center;background:white}
+.stat b{font:700 27px ui-monospace,monospace;display:block}.stat small{font:700 9px ui-monospace,monospace;letter-spacing:1px;color:var(--muted)}
+.actions{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-top:12px}button{min-height:54px;border:2px solid var(--gold);background:transparent;color:var(--ink);font:700 12px ui-monospace,monospace;letter-spacing:1.4px}
+button.primary{background:var(--gold);color:white}button:disabled{opacity:.4}.status{margin:15px 0 4px;font:600 12px ui-monospace,monospace;color:var(--muted);min-height:16px}
+.latest{background:white;border:1px solid var(--line);padding:13px;font:14px ui-monospace,monospace;word-break:break-all;min-height:46px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.tools button{min-height:42px;padding:0 12px;border-width:1px}
+.list{margin-top:14px;max-height:250px;overflow:auto;background:white;border:1px solid var(--line)}.item{display:grid;grid-template-columns:45px 1fr;gap:8px;padding:10px;border-bottom:1px solid #eee;font:12px ui-monospace,monospace}.n{color:#999;text-align:right}
+.footer{text-align:center;margin-top:45px;font:10px ui-monospace,monospace;letter-spacing:1px;color:#b4aa98}
+@media(max-width:520px){.app{padding:16px 12px 38px}.top{padding-top:3px}.brand{font-size:25px}.kicker{font-size:9px}.card{margin-top:22px;padding:14px}#reader{min-height:290px}}
+</style></head>
+<body><main class="app">
+<header class="top"><div><div class="brand">Quick <span>Scan</span></div><div class="kicker">REWARDS CODE CAPTURE</div></div><div class="kicker">FAST · LOCAL · DEDUPED</div></header>
+<section class="card"><div class="title">◉ Code Scanner</div>
+<div id="reader"></div>
+<div class="stats"><div class="stat"><b id="count">0</b><small>UNIQUE</small></div><div class="stat"><b id="dupes">0</b><small>DUPLICATES</small></div><div class="stat"><b id="rate">0</b><small>LAST MIN</small></div></div>
+<div class="actions"><button class="primary" id="start">◉ START SCANNING</button><button id="stop" disabled>STOP</button></div>
+<div class="status" id="status">READY — AIM AT A QR CODE</div>
+<div class="label">LATEST CODE</div><div class="latest" id="latest">—</div>
+<div class="tools"><button id="copy">COPY ALL</button><button id="csv">EXPORT CSV</button><button id="undo">UNDO</button><button id="clear">CLEAR</button></div>
+<div class="list" id="list"></div>
+</section>
+<div class="footer">QUICK SCAN v1.0 · CODES STAY ON THIS DEVICE · STANDARD REDEMPTION RULES APPLY</div>
+</main>
+<script>
+const K="quickscan-v1"; let q=null,running=false,items=[],dupes=0,times=[],last="",lastAt=0;
+const $=x=>document.getElementById(x);
+try{let s=JSON.parse(localStorage.getItem(K)||"{}");items=s.items||[];dupes=s.dupes||0}catch{}
+function save(){localStorage.setItem(K,JSON.stringify({items,dupes}))}
+function render(){let now=Date.now();times=times.filter(x=>now-x<60000);$("count").textContent=items.length;$("dupes").textContent=dupes;$("rate").textContent=times.length;$("latest").textContent=items.length?items.at(-1).text:"—";$("list").innerHTML=[...items].reverse().map((x,i)=>`<div class="item"><div class="n">${items.length-i}</div><div>${esc(x.text)}</div></div>`).join("")}
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function hit(raw){raw=(raw||"").trim();let now=Date.now();if(!raw||(raw===last&&now-lastAt<1200))return;last=raw;lastAt=now;
+ if(items.some(x=>x.text===raw)){dupes++;$("status").textContent="DUPLICATE — IGNORED";navigator.vibrate?.([20,40,20]);save();render();return}
+ items.push({text:raw,time:new Date().toISOString()});times.push(now);$("status").textContent=`CAPTURED — ${items.length} UNIQUE`;navigator.vibrate?.(45);save();render()}
+async function start(){if(!window.isSecureContext){$("status").textContent="CAMERA NEEDS HTTPS — OPEN THE DEPLOYED APP LINK";return}
+ try{let cams=await Html5Qrcode.getCameras();let c=cams.find(x=>/back|rear|environment/i.test(x.label))||cams[0];q=new Html5Qrcode("reader");await q.start(c.id,{fps:20,qrbox:(w,h)=>{let s=Math.floor(Math.min(w,h)*.76);return{width:s,height:s}},experimentalFeatures:{useBarCodeDetectorIfSupported:true}},hit,()=>{});running=true;$("start").disabled=true;$("stop").disabled=false;$("status").textContent="SCANNING — SWEEP FROM CODE TO CODE"}catch(e){$("status").textContent="CAMERA ERROR — CHECK SAFARI CAMERA PERMISSION"}}
+async function stop(){if(!running)return;try{await q.stop();await q.clear()}catch{}running=false;$("start").disabled=false;$("stop").disabled=true;$("status").textContent="SCANNER STOPPED"}
+$("start").onclick=start;$("stop").onclick=stop;
+$("copy").onclick=async()=>{if(items.length){await navigator.clipboard.writeText(items.map(x=>x.text).join("\n"));$("status").textContent=`COPIED ${items.length} CODES`}}
+$("undo").onclick=()=>{items.pop();save();render()};$("clear").onclick=()=>{if(confirm("Clear all saved codes?")){items=[];dupes=0;save();render()}};
+$("csv").onclick=()=>{if(!items.length)return;let csv="number,code,scanned_at\n"+items.map((x,i)=>`${i+1},"${x.text.replaceAll('"','""')}","${x.time}"`).join("\n");let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="quick_scan_codes.csv";a.click()};
+render();
+</script></body></html>

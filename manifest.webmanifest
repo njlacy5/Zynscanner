@@ -1,0 +1,8 @@
+{
+  "name": "Quick Scan",
+  "short_name": "Quick Scan",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f3eb",
+  "theme_color": "#f6f3eb"
+}
